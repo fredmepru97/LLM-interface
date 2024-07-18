@@ -75,7 +75,9 @@ else:
 
     def generate_sql(prompt, schema_info):
         schema_info_str = "\n".join([f"Table '{table}': columns {', '.join(columns)}" for table, columns in schema_info.items()])
-        enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters."
+        enhanced_prompt = f"""
+                {schema_info_str}\n\nGenerate a SQL query to {prompt}, alias the columns in the SELECT statement extremely precicely.
+                Donot include any non SQL related characters."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -144,11 +146,8 @@ else:
             st.code(sql_query, language='sql')
             
             cleaned_sql_query = clean_sql_query(sql_query)
-            st.write("Cleaned SQL Query:")
-            st.code(cleaned_sql_query, language='sql')
             
             st.subheader("Part 2: Query Results")
-            st.write(f"Executing SQL Query: {cleaned_sql_query}")
             result = execute_sql(cleaned_sql_query)
             if isinstance(result, str):
                 st.error(result)

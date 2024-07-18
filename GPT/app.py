@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 
 # Load environment variables from the .env file located at the specified path
-env_path = "C:/Users/Vic/LLM-interface/.env"
+env_path = "/Users/muhammadraza/Documents/GitHub/LLM_interface/.env"
 load_dotenv(dotenv_path=env_path)
 
 # Get the OpenAI API key from environment variables
@@ -28,8 +28,21 @@ column_explanations = {
 if not api_key:
     st.error("OpenAI API key not found. Please set it in the .env file.")
 else:
+    conn = duckdb.connect(database='isrecon_all.duckdb')
+    current_schema = conn.execute("SELECT current_schema()").fetchone()
     # Initialize the OpenAI client
     client = openai.OpenAI(api_key=api_key)
+
+    def fetch_schema_info():
+        tables = conn.execute("SHOW TABLES").fetchall()
+        schema_info = {}
+        for table in tables:
+            table_name = table[0]
+            columns = conn.execute(f"DESCRIBE main.{table_name}").fetchall()
+            schema_info[table_name] = [column[0] for column in columns]
+        return schema_info
+    
+    schema_info = fetch_schema_info()
 
     st.title("LLM Interface for Databases")
     st.text("Team members: Jessica, Sarah, Raza, Viktor, Freddy ")
@@ -60,27 +73,15 @@ else:
 
     query = st.text_area('Enter your text to generate SQL query', '')
 
-    def generate_sql(query):
-        prompt = (
-            f"You are an SQL expert. Translate the following natural language query to a syntactically correct SQL query, "
-            f"using the given schema. Ensure that the correct types of fields and functions are used:\n"
-            f"Schema:\n"
-            f"Table Papers: article_id (INTEGER), citekey (TEXT), abstract (TEXT), journal_akronym (TEXT), citation_count (INTEGER)\n"
-            f"Table Sentences: article_id (INTEGER), sentence_id (INTEGER), section_id (INTEGER), last_section_title (TEXT), last_subsection_title (TEXT), section_nr (INTEGER), "
-            f"para_id (INTEGER), sentence_type (TEXT), sentence_original (TEXT)\n"
-            f"Table Paragraphs: para_id (INTEGER)\n"
-            f"Table Entities: ent_id (INTEGER), entity (TEXT), sentence (TEXT)\n"
-            f"Table Ontology: ent_id (INTEGER), definition (TEXT), label (TEXT)\n"
-            f"Table Citations: citekey (TEXT), reference_citekey (TEXT), paper_citekey (TEXT)\n"
-            f"Table Sources: citekey (TEXT), para_id (INTEGER)\n\n"
-            f"Query:\n"
-            f"{query}\n"
-            f"SQL:"
-        )
+    def generate_sql(prompt, schema_info):
+        schema_info_str = "\n".join([f"Table '{table}': columns {', '.join(columns)}" for table, columns in schema_info.items()])
+        enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters."
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": prompt}],
+            messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
             max_tokens=150,
+            temperature=1,
             stop=["#", ";"]
         )
         sql_query = response.choices[0].message.content.strip()
@@ -96,7 +97,6 @@ else:
         return sql_query
 
     def execute_sql(sql_query):
-        conn = duckdb.connect(database=r'C:\Users\Vic\LLM-interface\GPT\isrecon_AIS11_vs_2.duckdb')
         try:
             result_df = conn.execute(sql_query).fetchdf()
             return result_df
@@ -111,14 +111,15 @@ else:
         finally:
             conn.close()
 
+    def prompt_to_sql_execution(base_prompt, query, schema_info):
+        full_prompt = f"{base_prompt} {query}"
+        sql_query = generate_sql(full_prompt, schema_info)
+        print(f"Generated SQL: {sql_query}")
+        result = execute_sql(sql_query)
+        return sql_query, result
+
     def summarize_results(results):
-        summary = "The query results provide the following information:\n\n"
-        summary += "Columns:\n"
-        
-        # Describe each column
-        for column in results.columns:
-            explanation = column_explanations.get(column, "No explanation available.")
-            summary += f"- **{column}**: {explanation}\n"
+        summary = " \n\n"
         
         # Summarize the content
         content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
@@ -133,12 +134,12 @@ else:
         )
         content_summary = response.choices[0].message.content.strip()
         
-        summary += f"\nDetailed Summary:\n{content_summary}"
+        summary += f"\n\n{content_summary}"
         return summary
 
     if st.button('Generate SQL query'):
         if len(query) > 0:
-            sql_query = generate_sql(query)
+            sql_query = generate_sql(query, schema_info)
             st.write("Generated SQL Query:")
             st.code(sql_query, language='sql')
             

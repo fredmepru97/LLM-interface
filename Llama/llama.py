@@ -10,7 +10,7 @@ api_key=config['GROQ_API_KEY']
 
 # Setting up the connection to the database with main as the schema
 
-conn = duckdb.connect(database='isrecon_all.duckdb')
+conn = duckdb.connect(database='/Users/muhammadraza/Documents/GitHub/LLM_interface/isrecon_AIS11_vs_2.duckdb')
 current_schema = conn.execute("SELECT current_schema()").fetchone()
 
 groq = Groq(api_key=api_key)
@@ -39,7 +39,7 @@ def generate_sql(prompt, schema_info):
                 "content": enhanced_prompt
             }
         ],
-        temperature=1,
+        temperature=0,
         max_tokens=1024,
         top_p=1,
         stream=True,

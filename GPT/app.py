@@ -77,7 +77,7 @@ else:
         schema_info_str = "\n".join([f"Table '{table}': columns {', '.join(columns)}" for table, columns in schema_info.items()])
         enhanced_prompt = f"""
                 {schema_info_str}\n\nGenerate a SQL query to {prompt}, alias the columns in the SELECT statement extremely precicely.
-                Donot include any non SQL related characters."""
+                Do not include any non SQL related characters."""
 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -90,9 +90,6 @@ else:
         sql_start = sql_query.lower().find("select")
         if sql_start != -1:
             sql_query = sql_query[sql_start:]
-        return sql_query
-
-    def clean_sql_query(sql_query):
         sql_query = sql_query.strip()
         sql_query = sql_query.replace("\n", " ")
         sql_query = sql_query.replace("`", "")
@@ -120,11 +117,13 @@ else:
         result = execute_sql(sql_query)
         return sql_query, result
 
-    def summarize_results(results):
+    def summarize_results(results, base_prompt, query):
         summary = " \n\n"
-        
+        full_prompt = f"{base_prompt} {query}"
         # Summarize the content
-        content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
+        content_summary_prompt = f"""You have the results:\n\n{results.to_string(index=False)} to the {full_prompt} query which were
+                                generated via a DuckDB database, please tell me how these results compare to what you know about this certain topic
+                                without this additional information."""
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -138,17 +137,14 @@ else:
         
         summary += f"\n\n{content_summary}"
         return summary
-
+    base_prompt = "Generate a SQL query to of the following input. Only generate SQL query."
     if st.button('Generate SQL query'):
         if len(query) > 0:
-            sql_query = generate_sql(query, schema_info)
+            sql_query, result = prompt_to_sql_execution(base_prompt, query, schema_info)
             st.write("Generated SQL Query:")
             st.code(sql_query, language='sql')
             
-            cleaned_sql_query = clean_sql_query(sql_query)
-            
             st.subheader("Part 2: Query Results")
-            result = execute_sql(cleaned_sql_query)
             if isinstance(result, str):
                 st.error(result)
             else:
@@ -156,6 +152,6 @@ else:
                     st.warning("No results found.")
                 else:
                     st.dataframe(result)
-                    summary = summarize_results(result)
+                    summary = summarize_results(result, base_prompt, query)
                     st.subheader("Summary of Results")
                     st.write(summary)

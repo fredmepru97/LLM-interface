@@ -1,11 +1,7 @@
 import openai
 import streamlit as st
 import duckdb
-from dotenv import load_dotenv
 import os
-
-env_path = "C:/Users/Vic/LLM-interface/.env"
-load_dotenv(dotenv_path=env_path)
 
 api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = api_key   
@@ -107,33 +103,8 @@ def main_app():
 
         # Fetch schema information
         schema_info = fetch_schema_info()
-
-        st.title("LLM Interface for Databases")
-        st.text("Team members: Jessica, Sarah, Raza, Viktor, Freddy ")
-
-        subheader_css = """
-        <style>
-            .st-eb {
-                font-size: 16px;
-            }
-        </style>
-        """
-        st.markdown(subheader_css, unsafe_allow_html=True)
-
+        st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
         st.text("-------------------------------------------------------------------------------")
-        st.text("--- A Text, Web and Social Media Analytics Lab Project ---")
-        st.text("-------------------------------------------------------------------------------")
-
-        st.subheader("Part 1: Convert natural language to SQL queries")
-
-        page_bg_css = """
-        <style>
-            body {
-                background-color: #7F00FF;
-            }
-        </style>
-        """
-        st.markdown(page_bg_css, unsafe_allow_html=True)
 
         query = st.text_area('Enter your text to generate SQL query', '')
 

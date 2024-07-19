@@ -5,7 +5,7 @@ import streamlit as st
 
 # Setting up credentials to LLama 
 config = dotenv_values(".env")
-api_key = config['GROQ_API_KEY']
+api_key = config['OPENAI_API_KEY']
 
 # Setting up the connection to the database with main as the schema
 conn = duckdb.connect(database='isrecon_all.duckdb')

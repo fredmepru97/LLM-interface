@@ -102,7 +102,7 @@ def llama_app():
 
         # Fetch schema information
         schema_info = fetch_schema_info()
-        st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
+        st.title("Natural Language to SQL Query Transformer using Llama3-70b-8192")
         st.text("-------------------------------------------------------------------------------")
 
         query = st.text_area('Enter your text to generate SQL query', '')
@@ -111,34 +111,35 @@ def llama_app():
             schema_info_str = "\n".join(
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
                 for table, info in schema_info.items()])
-            enhanced_prompt = f"""
-                    {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}, alias the columns in the SELECT statement extremely precicely.
-                    Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
-                    E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
-                    is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
-                    of intelligence are capitalized."""
+            enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters. Simply output the SQL query."
 
             response = groq.chat.completions.create(
                         model="llama3-70b-8192",
                         messages=[
-            {
-                "role": "user",
-                "content": enhanced_prompt
-            }
-        ],
-        temperature=0,
-        max_tokens=1024,
-        top_p=1,
-        stream=True,
-        stop=None,
-    )
-            sql_query = response.choices[0].message.content.strip()
-            sql_start = sql_query.lower().find("select")
-            if sql_start != -1:
-                sql_query = sql_query[sql_start:]
-            sql_query = sql_query.strip()
-            sql_query = sql_query.replace("\n", " ")
-            sql_query = sql_query.replace("`", "")
+                {
+                    "role": "user",
+                    "content": enhanced_prompt
+                }
+            ],
+                    temperature=0,
+                    max_tokens=1024,
+                    top_p=1,
+                    stream=True,
+                    stop=None,
+                )
+            sql_query = ""
+            for chunk in response:
+                sql_query += chunk.choices[0].delta.content or ""
+
+            sql_query = sql_query.replace("```", "").strip()
+
+            # Remove any non-SQL preamble
+            lines = sql_query.split('\n')
+            for i, line in enumerate(lines):
+                if "SELECT" in line.upper():
+                    sql_query = "\n".join(lines[i:])
+                    break
+
             return sql_query
 
         def execute_sql(sql_query):

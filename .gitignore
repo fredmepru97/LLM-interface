@@ -1,2 +1,3 @@
 .env
 isrecon_all.duckdb
+__pycache__/

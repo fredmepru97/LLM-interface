@@ -75,6 +75,8 @@ def prompt_to_sql_execution(base_prompt, user_input, schema_info):
 
 def llama_page():
     st.title("Natural Language to SQL Query Transformer using LLama")
+    st.text("-------------------------------------------------------------------------------")
+
     base_prompt = "Generate a SQL query to of the following input. Only generate SQL query."
 
     user_input = st.text_area("Describe what you want to do:", "")

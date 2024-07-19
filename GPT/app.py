@@ -47,7 +47,7 @@ def main_app():
         schema_info = fetch_schema_info()
 
         st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
-
+        st.text("-------------------------------------------------------------------------------")
         subheader_css = """
         <style>
             .st-eb {

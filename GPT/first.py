@@ -10,7 +10,7 @@ openai.api_key = api_key
 
 def first_page():
     st.title("Unconnected Natural Language to SQL Query transformer using GPT-3.5 Turbo")
-
+    st.text("-------------------------------------------------------------------------------")
     subheader_css = """
     <style>
         .st-eb {
@@ -18,7 +18,6 @@ def first_page():
         }
     </style>
     """
-    st.text("-------------------------------------------------------------------------------")
     st.markdown(subheader_css, unsafe_allow_html=True)
     st.subheader("Part 1: Convert natural language to SQL queries")
 

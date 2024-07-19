@@ -9,7 +9,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 openai.api_key = api_key
 
 def first_page():
-    st.title("Unconnected Natural Language to SQL Query transformer using GPT-3.5 Turbo")
+    st.title("Natural Language to SQL Query Transformer unconnected")
     st.text("-------------------------------------------------------------------------------")
     subheader_css = """
     <style>

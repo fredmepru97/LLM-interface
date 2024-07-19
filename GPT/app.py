@@ -4,14 +4,10 @@ import duckdb
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from the .env file located at the specified path
 env_path = "C:/Users/fredd/text-project/.env"
 load_dotenv(dotenv_path=env_path)
 
-# Get the OpenAI API key from environment variables
 api_key = os.getenv("OPENAI_API_KEY")
-
-# Set the OpenAI API key
 openai.api_key = api_key
 
 # Column explanations
@@ -120,7 +116,10 @@ def main_app():
             # Summarize the content
             content_summary_prompt = f"""You have the results:\n\n{results.to_string(index=False)} to the {full_prompt} query which were
                                     generated via a DuckDB database, please tell me how these results compare to what you know about this certain topic
-                                    without this additional information."""
+                                    without this additional information. Be mindful when writing your response and consider what was asked for in the
+                                    prompt, if it is asking for quantitaive data just give a short sentence summarizing the results. If qualitative
+                                    data is what is being asked, give a summary of the provided data. Limit your  response to 300 characters if qualitative 
+                                    and one sentence if quantitative."""
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -151,5 +150,5 @@ def main_app():
                     else:
                         st.dataframe(result)
                         summary = summarize_results(result, base_prompt, query)
-                        st.subheader("Summary of Results")
+                        st.subheader("Part 3: Summary of Results")
                         st.write(summary)

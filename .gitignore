@@ -1,2 +1,4 @@
 .env
 isrecon_all.duckdb
+*.pyc
+/GPT/__pycache__

@@ -1,5 +1,5 @@
 import streamlit as st
-from Llama.llama import llama_page
+from Llama.llama import llama_app
 from GPT.first import first_page
 from GPT.app import main_app
 
@@ -25,7 +25,7 @@ def main():
     elif page == "GPT":
         main_app()
     elif page == "Llama":
-        llama_page()
+        llama_app()
     elif page == "Simple GPT":
         first_page()
 

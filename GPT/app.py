@@ -73,6 +73,37 @@ additional_info = {
             "citekey": "the reference_citekey from table citations",
             "para_id": "unique para_id for each individual paragraph"
         }
+    },
+    "authors": {
+        "purpose": """All authors of the papers in the database. One row is one author""",
+        "columns": {
+            "author_position": "the position of the author in the author list",
+            "full_name": "full name of the author",
+            "institutions": "institution of the author",
+        }
+    },
+    "keywords": {
+        "purpose": """All individual keywords from the papers in the database. One row is one keyword""",
+        "columns": {
+            "article_id": "the article_id which maps to table papers",
+            "keyword": "the keyword"
+        }
+    },
+    "subsections": {
+        "purpose": """All individual subsections of every paper in the database. One row is one subsection.""",
+        "columns": {
+            "section_id": "unique section_id for each individual section",
+            "section_nr": "section counter for each article (starts with 0 (or 1) for each article)",
+            "section_title": "title of the section",
+            "subsection_title": "title of the subsection"
+        }
+    },
+    "synonyms": {
+        "purpose": """All synonyms for the ent_ids in the IS Ontology. One row is one synonym.""",
+        "columns": {
+            "ent_id": "the ent_id from the IS Ontology",
+            "synonym": "a synonym for an ent_id"
+        }
     }
 }
 

@@ -2,9 +2,16 @@ import openai
 import streamlit as st
 import duckdb
 import os
+import json
 
 api_key = os.getenv("OPENAI_API_KEY")
-openai.api_key = api_key   
+if not api_key:
+    st.error("OpenAI API key not found. Please set it in your environment variables.")
+    st.stop()
+
+openai.api_key = api_key
+
+PROMPTS_FILE = 'prompts.json'
 
 additional_info = {
     "papers": {
@@ -74,94 +81,99 @@ additional_info = {
     }
 }
 
+def load_prompts():
+    """Load prompts from a JSON file."""
+    if os.path.exists(PROMPTS_FILE):
+        with open(PROMPTS_FILE, 'r') as f:
+            return json.load(f)
+    return {"llama": [], "chatgpt": [], "simple_gpt": []}
+
+def save_prompts(prompts):
+    """Save prompts to a JSON file."""
+    with open(PROMPTS_FILE, 'w') as f:
+        json.dump(prompts, f, indent=4)
+
 def main_app():
-    if not api_key:
-        st.error("OpenAI API key not found. Please set it in the .env file.")
-    else:
-        conn = duckdb.connect(database='isrecon_all.duckdb')
-        current_schema = conn.execute("SELECT current_schema()").fetchone()
-        client = openai.OpenAI(api_key=api_key)
+    conn = duckdb.connect(database='isrecon_all.duckdb')
 
-        def fetch_schema_info():
-            try:
-                tables = conn.execute("SHOW TABLES").fetchall()
-                schema_info = {}
-                for table in tables:
-                    table_name = table[0]
-                    columns = conn.execute(f"DESCRIBE {table_name}").fetchall()
-                    schema_info[table_name] = {
-                        "columns": {column[0]: "" for column in columns}
-                    }
-                    # Add additional info if available
-                    if table_name in additional_info:
-                        schema_info[table_name]["purpose"] = additional_info[table_name].get("purpose", "No purpose available")
-                        schema_info[table_name]["columns"].update(additional_info[table_name].get("columns", {}))
-                return schema_info
-            except Exception as e:
-                st.error(f"Error fetching schema information: {e}")
-                return None
+    def fetch_schema_info():
+        """Fetch schema information from the DuckDB database."""
+        try:
+            tables = conn.execute("SHOW TABLES").fetchall()
+            schema_info = {}
+            for table in tables:
+                table_name = table[0]
+                columns = conn.execute(f"DESCRIBE {table_name}").fetchall()
+                schema_info[table_name] = {
+                    "columns": {column[0]: "" for column in columns}
+                }
+                if table_name in additional_info:
+                    schema_info[table_name]["purpose"] = additional_info[table_name].get("purpose", "No purpose available")
+                    schema_info[table_name]["columns"].update(additional_info[table_name].get("columns", {}))
+            return schema_info
+        except Exception as e:
+            st.error(f"Error fetching schema information: {e}")
+            return None
 
-        # Fetch schema information
-        schema_info = fetch_schema_info()
-        st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
-        st.text("-------------------------------------------------------------------------------")
+    schema_info = fetch_schema_info()
+    st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
+    st.text("-------------------------------------------------------------------------------")
 
-        query = st.text_area('Enter your text to generate SQL query', '')
+    query = st.text_area('Enter your text to generate SQL query', '')
 
-        def generate_sql(prompt, schema_info):
-            schema_info_str = "\n".join(
-                [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
-                for table, info in schema_info.items()])
-            enhanced_prompt = f"""
-                    {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}, alias the columns in the SELECT statement extremely precicely.
-                    Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
-                    E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
-                    is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
-                    of intelligence are capitalized."""
+    def generate_sql(prompt, schema_info):
+        """Generate SQL query using OpenAI GPT-3.5 Turbo."""
+        schema_info_str = "\n".join(
+            [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
+             for table, info in schema_info.items()])
+        enhanced_prompt = f"""
+                {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}. Alias the columns in the SELECT statement extremely precisely.
+                Do not include any non-SQL related characters. Consider edge cases where column names might include spaces or special characters.
+                """
 
-            response = client.chat.completions.create(
+        try:
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
                 max_tokens=150,
                 temperature=1,
                 stop=["#", ";"]
             )
-            sql_query = response.choices[0].message.content.strip()
+            sql_query = response.choices[0].message['content'].strip()
             sql_start = sql_query.lower().find("select")
             if sql_start != -1:
                 sql_query = sql_query[sql_start:]
-            sql_query = sql_query.strip()
-            sql_query = sql_query.replace("\n", " ")
-            sql_query = sql_query.replace("`", "")
+            sql_query = sql_query.strip().replace("\n", " ").replace("`", "")
             return sql_query
+        except Exception as e:
+            st.error(f"Error generating SQL query: {e}")
+            return ""
 
-        def execute_sql(sql_query):
-            try:
-                result_df = conn.execute(sql_query).fetchdf()
-                return result_df
-            except duckdb.CatalogException as e:
-                return f"Catalog error: {e}"
-            except duckdb.ParserException as e:
-                return f"Syntax error in SQL query: {e}"
-            except duckdb.BinderException as e:
-                return f"Binder error: {e}"
-            except Exception as e:
-                return f"An unexpected error occurred: {e}"
-            finally:
-                conn.close()
+    def execute_sql(sql_query):
+        """Execute the SQL query and return the result."""
+        try:
+            result_df = conn.execute(sql_query).fetchdf()
+            return result_df
+        except duckdb.CatalogException as e:
+            return f"Catalog error: {e}"
+        except duckdb.ParserException as e:
+            return f"Syntax error in SQL query: {e}"
+        except duckdb.BinderException as e:
+            return f"Binder error: {e}"
+        except Exception as e:
+            return f"An unexpected error occurred: {e}"
+        finally:
+            conn.close()
 
-        def prompt_to_sql_execution(base_prompt, query, schema_info):
-            full_prompt = f"{base_prompt} {query}"
-            sql_query = generate_sql(full_prompt, schema_info)
-            print(f"Generated SQL: {sql_query}")
-            result = execute_sql(sql_query)
-            return sql_query, result
-
-        def summarize_results(results):
-            summary = " \n\n"
+    def summarize_results(results):
+        """Summarize the query results using OpenAI GPT-3.5 Turbo."""
+        if isinstance(results, str):  # Handle error messages
+            return results
+        
+        try:
             content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
             
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a summarization expert."},
@@ -170,26 +182,47 @@ def main_app():
                 max_tokens=300,
                 stop=["#", ";"]
             )
-            content_summary = response.choices[0].message.content.strip()
+            content_summary = response.choices[0].message['content'].strip()
+            return f"\n\n{content_summary}"
+        except Exception as e:
+            st.error(f"Error summarizing results: {e}")
+            return ""
+
+    if st.button('Generate SQL query'):
+        if len(query) > 0:
+            # Load and update prompts
+            prompts = load_prompts()
+            sql_query = generate_sql(query, schema_info)
+            result = execute_sql(sql_query)
+            summary = summarize_results(result)
+
+            # Prepare the new entry for the prompts JSON file
+            new_entry = {
+                "prompt": query,
+                "sql_query": sql_query,
+                "results": result.to_dict() if not isinstance(result, str) else result,
+                "summary": summary
+            }
+
+            # Append the new entry to the existing prompts
+            prompts["chatgpt"].append(new_entry)
+            save_prompts(prompts)
+
+            st.write("Generated SQL Query:")
+            st.code(sql_query, language='sql')
             
-            summary += f"\n\n{content_summary}"
-            return summary
-        
-        if st.button('Generate SQL query'):
-            if len(query) > 0:
-                sql_query = generate_sql(query, schema_info)
-                st.write("Generated SQL Query:")
-                st.code(sql_query, language='sql')
-                
-                st.subheader("Part 2: Query Results")
-                result = execute_sql(sql_query)
-                if isinstance(result, str):
-                    st.error(result)
+            st.subheader("Part 2: Query Results")
+            if isinstance(result, str):
+                st.error(result)
+            else:
+                if result.empty:
+                    st.warning("No results found.")
                 else:
-                    if result.empty:
-                        st.warning("No results found.")
-                    else:
-                        st.dataframe(result)
-                        summary = summarize_results(result)
-                        st.subheader("Part 3: Summary of Results")
-                        st.write(summary)
+                    st.dataframe(result)  # Display the results as an interactive table
+                    st.subheader("Part 3: Summary of Results")
+                    st.write(summary)
+        else:
+            st.write("Please enter a query description.")
+
+if __name__ == "__main__":
+    main_app()

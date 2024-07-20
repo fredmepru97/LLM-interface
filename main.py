@@ -2,10 +2,11 @@ import streamlit as st
 from Llama.llama import llama_app
 from GPT.first import first_page
 from GPT.app import main_app
+from prompt_saver import prompt_saver_page  # Import the function for the Prompt Saver page
 
 def main():
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Home Page", "GPT", "Llama", "Simple GPT"])
+    page = st.sidebar.radio("Go to", ["Home Page", "GPT", "Llama", "Simple GPT", "Prompt Saver"])
 
     if page == "Home Page":
         st.title("Welcome to our home page!")
@@ -28,6 +29,8 @@ def main():
         llama_app()
     elif page == "Simple GPT":
         first_page()
+    elif page == "Prompt Saver":
+        prompt_saver_page()  # Call the function from prompt_saver.py
 
 if __name__ == "__main__":
     main()

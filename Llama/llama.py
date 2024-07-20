@@ -2,9 +2,14 @@ from groq import Groq
 import streamlit as st
 import duckdb
 from dotenv import dotenv_values
+import os
+import json
+import pandas as pd
 
-config = dotenv_values("/Users/muhammadraza/Documents/GitHub/LLM_interface/.env")
+config = dotenv_values(".env")
 api_key = config['GROQ_API_KEY']
+
+PROMPTS_FILE = 'prompts.json'
 
 additional_info = {
     "papers": {
@@ -74,122 +79,166 @@ additional_info = {
     }
 }
 
-def llama_app():
-    if not api_key:
-        st.error("Groq API key not found. Please set it in the .env file.")
-    else:
-        conn = duckdb.connect(database='isrecon_all.duckdb')
+def load_prompts():
+    """Load prompts from a JSON file."""
+    if os.path.exists(PROMPTS_FILE):
+        with open(PROMPTS_FILE, 'r') as f:
+            return json.load(f)
+    return {"llama": [], "chatgpt": [], "simple_gpt": []}
+
+def save_prompts(prompts):
+    """Save prompts to a JSON file."""
+    with open(PROMPTS_FILE, 'w') as f:
+        json.dump(prompts, f, indent=4)
+
+def fetch_schema_info(conn):
+    """Fetch schema information from the DuckDB database."""
+    try:
+        tables = conn.execute("SHOW TABLES").fetchall()
+        schema_info = {}
+        for table in tables:
+            table_name = table[0]
+            columns = conn.execute(f"DESCRIBE {table_name}").fetchall()
+            schema_info[table_name] = {
+                "columns": {column[0]: "" for column in columns}
+            }
+            # Add additional info if available
+            if table_name in additional_info:
+                schema_info[table_name]["purpose"] = additional_info[table_name].get("purpose", "No purpose available")
+                schema_info[table_name]["columns"].update(additional_info[table_name].get("columns", {}))
+        return schema_info
+    except Exception as e:
+        st.error(f"Error fetching schema information: {e}")
+        return None
+
+def generate_sql(prompt, schema_info):
+    """Generate SQL query using Groq."""
+    schema_info_str = "\n".join(
+        [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
+         for table, info in schema_info.items()])
+    enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non-SQL related characters. Simply output the SQL query."
+
+    groq = Groq(api_key=api_key)
+    response = groq.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {"role": "user", "content": enhanced_prompt}
+        ],
+        temperature=0,
+        max_tokens=1024,
+        top_p=1,
+        stream=True,
+        stop=None,
+    )
+    sql_query = ""
+    for chunk in response:
+        sql_query += chunk.choices[0].delta.content or ""
+
+    sql_query = sql_query.replace("```", "").strip()
+
+    # Remove any non-SQL preamble
+    lines = sql_query.split('\n')
+    for i, line in enumerate(lines):
+        if "SELECT" in line.upper():
+            sql_query = "\n".join(lines[i:])
+            break
+
+    return sql_query
+
+def execute_sql(conn, sql_query):
+    """Execute the SQL query and return the result."""
+    try:
+        result_df = conn.execute(sql_query).fetchdf()
+        return result_df
+    except duckdb.CatalogException as e:
+        return f"Catalog error: {e}"
+    except duckdb.ParserException as e:
+        return f"Syntax error in SQL query: {e}"
+    except duckdb.BinderException as e:
+        return f"Binder error: {e}"
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+
+def summarize_results(results):
+    """Summarize the query results using Groq."""
+    if isinstance(results, str):
+        return results  # If the result is an error message, just return it
+    
+    # Convert the results dictionary to a Pandas DataFrame
+    try:
+        df = pd.DataFrame(results)
+    except Exception as e:
+        st.error(f"Error converting results to DataFrame: {e}")
+        return "Error converting results to DataFrame."
+
+    # Create a detailed summary of the data
+    content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{df.to_string(index=False)}"
+    
+    try:
         groq = Groq(api_key=api_key)
-
-        def fetch_schema_info():
-            try:
-                tables = conn.execute("SHOW TABLES").fetchall()
-                schema_info = {}
-                for table in tables:
-                    table_name = table[0]
-                    columns = conn.execute(f"DESCRIBE {table_name}").fetchall()
-                    schema_info[table_name] = {
-                        "columns": {column[0]: "" for column in columns}
-                    }
-                    # Add additional info if available
-                    if table_name in additional_info:
-                        schema_info[table_name]["purpose"] = additional_info[table_name].get("purpose", "No purpose available")
-                        schema_info[table_name]["columns"].update(additional_info[table_name].get("columns", {}))
-                return schema_info
-            except Exception as e:
-                st.error(f"Error fetching schema information: {e}")
-                return None
-
-        # Fetch schema information
-        schema_info = fetch_schema_info()
-        st.title("Natural Language to SQL Query Transformer using Llama3-70b-8192")
-        st.text("-------------------------------------------------------------------------------")
-
-        query = st.text_area('Enter your text to generate SQL query', '')
-
-        def generate_sql(prompt, schema_info):
-            schema_info_str = "\n".join(
-                [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
-                for table, info in schema_info.items()])
-            enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters. Simply output the SQL query."
-
-            response = groq.chat.completions.create(
-                        model="llama3-70b-8192",
-                        messages=[
-                {
-                    "role": "user",
-                    "content": enhanced_prompt
-                }
+        response = groq.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": "You are a summarization expert."},
+                {"role": "user", "content": content_summary_prompt}
             ],
-                    temperature=0,
-                    max_tokens=1024,
-                    top_p=1,
-                    stream=True,
-                    stop=None,
-                )
-            sql_query = ""
-            for chunk in response:
-                sql_query += chunk.choices[0].delta.content or ""
+            max_tokens=300,
+            stop=["#", ";"]
+        )
+        content_summary = response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"Error summarizing results: {e}")
+        content_summary = "Error summarizing results."
 
-            sql_query = sql_query.replace("```", "").strip()
+    return df, content_summary
 
-            # Remove any non-SQL preamble
-            lines = sql_query.split('\n')
-            for i, line in enumerate(lines):
-                if "SELECT" in line.upper():
-                    sql_query = "\n".join(lines[i:])
-                    break
+def llama_app():
+    """Streamlit app for generating and executing SQL queries using Groq."""
+    conn = duckdb.connect(database='isrecon_all.duckdb')
+    
+    schema_info = fetch_schema_info(conn)
+    st.title("Natural Language to SQL Query Transformer using Llama3-70b-8192")
+    st.text("-------------------------------------------------------------------------------")
 
-            return sql_query
+    query = st.text_area('Enter your text to generate SQL query', '')
 
-        def execute_sql(sql_query):
-            try:
-                result_df = conn.execute(sql_query).fetchdf()
-                return result_df
-            except duckdb.CatalogException as e:
-                return f"Catalog error: {e}"
-            except duckdb.ParserException as e:
-                return f"Syntax error in SQL query: {e}"
-            except duckdb.BinderException as e:
-                return f"Binder error: {e}"
-            except Exception as e:
-                return f"An unexpected error occurred: {e}"
-            finally:
-                conn.close()
-
-        def summarize_results(results):
-            summary = " \n\n"
-            content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
+    if st.button('Generate SQL query'):
+        if len(query) > 0:
+            # Generate SQL query
+            sql_query = generate_sql(query, schema_info)
             
-            response = groq.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[
-                    {"role": "system", "content": "You are a summarization expert."},
-                    {"role": "user", "content": content_summary_prompt}
-                ],
-                max_tokens=300,
-                stop=["#", ";"]
-            )
-            content_summary = response.choices[0].message.content.strip()
+            # Execute SQL query and summarize results
+            result = execute_sql(conn, sql_query)
+            df, summary = summarize_results(result)
             
-            summary += f"\n\n{content_summary}"
-            return summary
-        
-        if st.button('Generate SQL query'):
-            if len(query) > 0:
-                sql_query = generate_sql(query, schema_info)
-                st.write("Generated SQL Query:")
-                st.code(sql_query, language='sql')
-                
-                st.subheader("Part 2: Query Results")
-                result = execute_sql(sql_query)
-                if isinstance(result, str):
-                    st.error(result)
+            # Save the prompt, SQL query, results, and summary
+            prompts = load_prompts()
+            new_entry = {
+                "prompt": query,
+                "sql_query": sql_query,
+                "results": result.to_dict() if not isinstance(result, str) else result,
+                "summary": summary
+            }
+            prompts["llama"].append(new_entry)
+            save_prompts(prompts)
+            
+            # Display the results
+            st.write("Generated SQL Query:")
+            st.code(sql_query, language='sql')
+            
+            st.subheader("Part 2: Query Results")
+            if isinstance(result, str):
+                st.error(result)
+            else:
+                if df.empty:
+                    st.warning("No results found.")
                 else:
-                    if result.empty:
-                        st.warning("No results found.")
-                    else:
-                        st.dataframe(result)
-                        summary = summarize_results(result)
-                        st.subheader("Part 3: Summary of Results")
-                        st.write(summary)
+                    st.dataframe(df)  # Display the results as an interactive table
+                    st.subheader("Part 3: Summary of Results")
+                    st.write(summary)
+        else:
+            st.write("Please enter a query description.")
+    conn.close()
+
+if __name__ == "__main__":
+    llama_app()

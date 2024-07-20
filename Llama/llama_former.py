@@ -3,17 +3,14 @@ from dotenv import dotenv_values
 import duckdb
 import streamlit as st
 
-# Setting up credentials to LLama 
-config = dotenv_values("/Users/muhammadraza/Documents/GitHub/LLM_interface/.env")
+config = dotenv_values(".env")
 api_key = config['GROQ_API_KEY']
 
-# Setting up the connection to the database with main as the schema
 conn = duckdb.connect(database='isrecon_all.duckdb')
 current_schema = conn.execute("SELECT current_schema()").fetchone()
 
 groq = Groq(api_key=api_key)
 
-# Function to fetch schema information
 def fetch_schema_info():
     tables = conn.execute("SHOW TABLES").fetchall()
     schema_info = {}
@@ -50,7 +47,6 @@ def generate_sql(prompt, schema_info):
     
     sql_query = sql_query.replace("```", "").strip()
     
-    # Remove any non-SQL preamble
     lines = sql_query.split('\n')
     for i, line in enumerate(lines):
         if "SELECT" in line.upper():
@@ -73,9 +69,10 @@ def prompt_to_sql_execution(base_prompt, user_input, schema_info):
     result = execute_sql(sql_query)
     return sql_query, result
 
-def llama_page():
-    st.title("Natural Language to SQL Query Transformer using LLama")
+def llama_simple():
+    st.title("Natural Language to SQL Query Transformer without prompt")
     st.text("-------------------------------------------------------------------------------")
+    st.subheader("Part 1: Convert natural language to SQL queries")
 
     base_prompt = "Generate a SQL query to of the following input. Only generate SQL query."
 

@@ -105,6 +105,7 @@ def main_app():
         schema_info = fetch_schema_info()
         st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
         st.text("-------------------------------------------------------------------------------")
+        st.subheader("Part 1: Convert natural language to SQL queries")
 
         query = st.text_area('Enter your text to generate SQL query', '')
 
@@ -123,7 +124,7 @@ def main_app():
                 model="gpt-3.5-turbo",
                 messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
                 max_tokens=150,
-                temperature=1,
+                temperature=0,
                 stop=["#", ";"]
             )
             sql_query = response.choices[0].message.content.strip()

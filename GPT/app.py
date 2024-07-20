@@ -150,6 +150,9 @@ def main_app():
                     {schema_info_str}\n\n
                     You have been given the schema of a DuckDB database. 
                     Generate a SQL query to this statement: {prompt}.
+                    Consider all possible ways within the database tables to get the correct answer from.
+                    You are allowed to use multiple tables in the SQL query.
+                    Always prefer using ILIKE instead of LIKE for case-insensitive matching.
                     Alias the columns in the SELECT statement extremely precisely.
                     Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
                     E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt

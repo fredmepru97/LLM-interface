@@ -147,7 +147,7 @@ def main_app():
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
                 for table, info in schema_info.items()])
             enhanced_prompt = f"""
-                    {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}, alias the columns in the SELECT statement extremely precicely.
+                    {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}, alias the columns in the SELECT statement extremely precisely.
                     Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
                     E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
                     is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I

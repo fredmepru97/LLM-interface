@@ -2,9 +2,11 @@ import openai
 import streamlit as st
 import duckdb
 import os
+from dotenv import dotenv_values
 
-api_key = os.getenv("OPENAI_API_KEY")
-openai.api_key = api_key   
+config = dotenv_values(".env")
+api_key = config['OPENAI_API_KEY']
+
 
 additional_info = {
     "papers": {

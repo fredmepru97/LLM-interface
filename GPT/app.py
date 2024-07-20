@@ -147,7 +147,10 @@ def main_app():
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
                 for table, info in schema_info.items()])
             enhanced_prompt = f"""
-                    {schema_info_str}\n\nGenerate a SQL query (DuckDB dialect) to {prompt}, alias the columns in the SELECT statement extremely precisely.
+                    {schema_info_str}\n\n
+                    You have been given the schema of a DuckDB database. 
+                    Generate a SQL query to this statement: {prompt}.
+                    Alias the columns in the SELECT statement extremely precisely.
                     Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
                     E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
                     is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
@@ -183,13 +186,6 @@ def main_app():
                 return f"An unexpected error occurred: {e}"
             finally:
                 conn.close()
-
-        def prompt_to_sql_execution(base_prompt, query, schema_info):
-            full_prompt = f"{base_prompt} {query}"
-            sql_query = generate_sql(full_prompt, schema_info)
-            print(f"Generated SQL: {sql_query}")
-            result = execute_sql(sql_query)
-            return sql_query, result
 
         def summarize_results(results):
             summary = " \n\n"

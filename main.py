@@ -1,12 +1,12 @@
 import streamlit as st
-from Llama.llama import llama_app
-from GPT.first import first_page
-from GPT.app import main_app
-from Llama.llama_former import llama_simple
+from Llama.llama_zero_shot import llama_zero_shot_app
+from Llama.llama_one_shot import llama_one_shot_app
+from GPT.gpt_zero_shot import gpt_zero_shot_app
+from GPT.gpt_one_shot import gpt_one_shot_app
 
 def main():
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Home Page", "GPT", "Llama", "Simple GPT", "Simple Llama"])
+    page = st.sidebar.radio("Go to", ["Home Page", "GPT", "Llama"])
 
     if page == "Home Page":
         st.title("Welcome to our home page!")
@@ -25,13 +25,11 @@ def main():
         st.text("---------------------------------- July 2024 ----------------------------------")
         
     elif page == "GPT":
-        main_app()
+            gpt_zero_shot_app()
+            gpt_one_shot_app()
     elif page == "Llama":
-        llama_app()
-    elif page == "Simple GPT":
-        first_page()
-    elif page == "Simple Llama":
-        llama_simple()
+            llama_zero_shot_app()
+            llama_one_shot_app()
 
 if __name__ == "__main__":
     main()

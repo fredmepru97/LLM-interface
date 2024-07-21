@@ -162,7 +162,7 @@ def main_app():
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
-                max_tokens=150,
+                max_tokens=500,
                 temperature=0,
                 stop=["#", ";"]
             )
@@ -173,6 +173,14 @@ def main_app():
             sql_query = sql_query.strip()
             sql_query = sql_query.replace("\n", " ")
             sql_query = sql_query.replace("`", "")
+
+            # List of keywords to insert line breaks before
+            keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
+
+            # Insert line breaks before keywords
+            for keyword in keywords:
+                sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
+
             return sql_query
 
         def execute_sql(sql_query):

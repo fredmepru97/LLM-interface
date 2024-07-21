@@ -148,30 +148,13 @@ def gpt_zero_shot_app():
                 for table, info in schema_info.items()])
             enhanced_prompt = f"""
                     {schema_info_str}\n\n
-                    You have been given the schema of a DuckDB database to which a SQL query must be generated.
-                    How to generate the SQL query: The following is an example of a statement and an appropriate SQL query:
-                    Which papers mention both 'blockchain technology' and 'supply chain management'? 
-                    Provide the paper name, abstract, journal name, and publication year.
-                    The appropriate SQL query for this statement is:
-                    SELECT DISTINCT p.title AS paper_name, p.abstract, p.journal AS journal_name, p.year AS publication_year
-                    FROM papers p 
-                    JOIN sentences s
-                    ON p.article_id = s.article_id
-                    JOIN entities e1
-                    ON s.article_id = e1.article_id
-                    AND s.sentence_id = e1.sentence_id 
-                    WHERE 
-                        (s.sentence_original ILIKE '%blockchain technology%' AND s.sentence_original ILIKE '%supply chain management%')
-                        OR
-                        (e1.entity ILIKE '%blockchain technology%' AND e1.entity ILIKE '%supply chain management%')
-                        OR 
-                        (abstract ILIKE '%blockchain technology%' AND abstract ILIKE '%supply chain management%')
-                        OR
-                        (keywords ILIKE '%blockchain technology%' AND keywords ILIKE '%supply chain management%')
-                        OR
-                        (title ILIKE '%blockchain technology%' AND title ILIKE '%supply chain management%')
-                    Now that you know the type of SQL to be generated, generate a SQL query to this statement: {prompt}.
-                    Additionally, do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
+                    You have been given the schema of a DuckDB database. 
+                    Generate a SQL query to this statement: {prompt}.
+                    Consider all possible ways within the database tables to get the correct answer from.
+                    You are allowed to use multiple tables in the SQL query.
+                    Always prefer using ILIKE instead of LIKE for case-insensitive matching.
+                    Alias the columns in the SELECT statement extremely precisely.
+                    Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
                     E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
                     is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
                     of intelligence are capitalized."""
@@ -239,7 +222,7 @@ def gpt_zero_shot_app():
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
-                st.subheader("Part 2: Query Results")
+                st.subheader("Zero-Shot: Query Results")
                 result = execute_sql(sql_query)
                 if isinstance(result, str):
                     st.error(result)
@@ -249,5 +232,5 @@ def gpt_zero_shot_app():
                     else:
                         st.dataframe(result)
                         summary = summarize_results(result)
-                        st.subheader("Part 3: Summary of Results")
+                        st.subheader("Zero-Shot: Summary of Results")
                         st.write(summary)

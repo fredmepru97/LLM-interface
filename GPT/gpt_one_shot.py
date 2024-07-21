@@ -178,7 +178,7 @@ def gpt_one_shot_app():
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
-                max_tokens=150,
+                max_tokens=500,
                 temperature=0,
                 stop=["#", ";"]
             )
@@ -189,6 +189,14 @@ def gpt_one_shot_app():
             sql_query = sql_query.strip()
             sql_query = sql_query.replace("\n", " ")
             sql_query = sql_query.replace("`", "")
+
+            # List of keywords to insert line breaks before
+            keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
+            
+            # Insert line breaks before keywords
+            for keyword in keywords:
+                sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
+
             return sql_query
 
         def execute_sql(sql_query):
@@ -230,7 +238,7 @@ def gpt_one_shot_app():
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
-                st.subheader("Part 2: Query Results")
+                st.subheader("One-Shot: Query Results")
                 result = execute_sql(sql_query)
                 if isinstance(result, str):
                     st.error(result)
@@ -240,5 +248,5 @@ def gpt_one_shot_app():
                     else:
                         st.dataframe(result)
                         summary = summarize_results(result)
-                        st.subheader("Part 3: Summary of Results")
+                        st.subheader("One-Shot: Summary of Results")
                         st.write(summary)

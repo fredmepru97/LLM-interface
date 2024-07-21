@@ -1,13 +1,14 @@
 import streamlit as st
 from Llama.llama_zero_shot import llama_zero_shot_app
 from Llama.llama_one_shot import llama_one_shot_app
-from GPT.gpt_zero_shot import gpt_zero_shot_app
-from GPT.gpt_one_shot import gpt_one_shot_app
+from GPT.gpt3_one_shot import gpt3_one_shot_app
+from GPT.gpt3_two_shot import gpt3_two_shot_app
+from GPT.gpt3_zero_shot import gpt3_zero_shot_app
 from prompt_saver import prompts_page
 
 def main():
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Home Page", "GPT", "Llama", "Saved Prompts"])
+    page = st.sidebar.radio("Go to", ["Home Page", "GPT 3.5 Turbo","Llama", "Saved Prompts"])
 
     if page == "Home Page":
         st.title("Welcome to LLM Interface for Databases!") 
@@ -22,9 +23,10 @@ def main():
         st.write("- You can navigate to the Saved Prompts page to view, add, and delete used prompts.")
         st.text("-------------------------------------------------------------------------------")
         
-    elif page == "GPT":
-            gpt_zero_shot_app()
-            gpt_one_shot_app()
+    elif page == "GPT 3.5 Turbo":
+            gpt3_zero_shot_app()
+            gpt3_one_shot_app()
+            gpt3_two_shot_app()
     elif page == "Llama":
             llama_zero_shot_app()
             llama_one_shot_app()

@@ -5,7 +5,6 @@ import os
 from dotenv import dotenv_values
 import json
 
-# Load API key from .env file
 config = dotenv_values(".env")
 api_key = config['OPENAI_API_KEY']
 if not api_key:
@@ -14,7 +13,6 @@ if not api_key:
 
 PROMPTS_FILE = 'prompts.json'
 
-# Additional schema information
 additional_info = {
     "papers": {
         "purpose": "Master Data of all papers in our database. One row is one paper.",
@@ -114,14 +112,14 @@ def load_prompts():
     if os.path.exists(PROMPTS_FILE):
         with open(PROMPTS_FILE, 'r') as f:
             return json.load(f)
-    return {"gpt_zero_shot": [], "gpt_one_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
+    return {"gpt3.5_zero_shot": [], "gpt3.5_one_shot": [], "gpt3.5_two_shot": [], "gpt4_zero_shot": [], "gpt4_one_shot": [], "gpt4_two_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
 
 def save_prompts(prompts):
     """Save prompts to a JSON file."""
     with open(PROMPTS_FILE, 'w') as f:
         json.dump(prompts, f, indent=4)
 
-def gpt_zero_shot_app():
+def gpt3_zero_shot_app():
     if not api_key:
         st.error("OpenAI API key not found. Please set it in the .env file.")
     else:
@@ -139,7 +137,6 @@ def gpt_zero_shot_app():
                     schema_info[table_name] = {
                         "columns": {column[0]: "" for column in columns}
                     }
-                    # Add additional info if available
                     if table_name in additional_info:
                         schema_info[table_name]["purpose"] = additional_info[table_name].get("purpose", "No purpose available")
                         schema_info[table_name]["columns"].update(additional_info[table_name].get("columns", {}))
@@ -148,13 +145,12 @@ def gpt_zero_shot_app():
                 st.error(f"Error fetching schema information: {e}")
                 return None
 
-        # Fetch schema information
         schema_info = fetch_schema_info()
         st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
         st.text("-------------------------------------------------------------------------------")
         st.subheader("Zero-Shot: Convert natural language to SQL queries with zero-shot prompting")
 
-        query = st.text_area('Enter your text to generate SQL query', '', key='gpt_zero_shot_query')
+        query = st.text_area('Enter your text to generate SQL query', '', key='gpt3.5_zero_shot_query')
 
         def generate_sql(prompt, schema_info):
             schema_info_str = "\n".join(
@@ -166,12 +162,7 @@ def gpt_zero_shot_app():
                     Generate a SQL query to this statement: {prompt}.
                     Consider all possible ways within the database tables to get the correct answer from.
                     You are allowed to use multiple tables in the SQL query.
-                    Always prefer using ILIKE instead of LIKE for case-insensitive matching.
-                    Alias the columns in the SELECT statement extremely precisely.
-                    Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
-                    E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
-                    is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
-                    of intelligence are capitalized."""
+                    Do not include any non SQL related characters."""
 
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -230,7 +221,7 @@ def gpt_zero_shot_app():
             summary += f"\n\n{content_summary}"
             return summary
 
-        if st.button('Generate SQL query', key='gpt_zero_shot_generate'):
+        if st.button('Generate SQL query', key='gpt3.5_zero_shot_generate'):
             if len(query) > 0:
                 prompts = load_prompts()
                 sql_query = generate_sql(query, schema_info)
@@ -244,13 +235,13 @@ def gpt_zero_shot_app():
                     "summary": summary
                 }
 
-                prompts["gpt_zero_shot"].append(new_entry)
+                prompts["gpt3.5_zero_shot"].append(new_entry)
                 save_prompts(prompts)
 
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
-                st.subheader("Zero-Shot: Query Results")
+                st.subheader("GPT 3.5 Zero-Shot: Query Results")
                 if isinstance(result, str):
                     st.error(result)
                 else:
@@ -258,12 +249,11 @@ def gpt_zero_shot_app():
                         st.warning("No results found.")
                     else:
                         st.dataframe(result)
-                        st.subheader("Zero-Shot: Summary of Results")
+                        st.subheader("GPT 3.5 Zero-Shot: Summary of Results")
                         st.write(summary)
 
-# Main entry point
 def main():
-    gpt_zero_shot_app()
+    gpt3_zero_shot_app()
 
 if __name__ == "__main__":
     main()

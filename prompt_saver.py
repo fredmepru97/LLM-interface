@@ -10,7 +10,7 @@ def load_prompts():
     if os.path.exists(PROMPTS_FILE):
         with open(PROMPTS_FILE, 'r') as f:
             return json.load(f)
-    return {"gpt_zero_shot": [], "gpt_one_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
+    return {"gpt3.5_zero_shot": [], "gpt3.5_one_shot": [], "gpt3.5_two_shot": [], "gpt4_zero_shot": [], "gpt4_one_shot": [], "gpt4_two_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
 
 def save_prompts(prompts):
     """Save prompts to a JSON file."""
@@ -28,7 +28,6 @@ def display_results(results):
 def prompts_page():
     st.title("Prompt Saver")
 
-    # Load prompts
     prompts = load_prompts()
     
     st.subheader("Saved Prompts")
@@ -36,7 +35,6 @@ def prompts_page():
     if st.button('Refresh'):
         prompts = load_prompts()
     
-    # Display prompts for each category
     for category, prompt_list in prompts.items():
         st.subheader(f"{category.capitalize()} Prompts")
         if not prompt_list:
@@ -44,9 +42,9 @@ def prompts_page():
         else:
             for idx, item in enumerate(prompt_list):
                 st.write(f"### Prompt {idx + 1}")
-                if isinstance(item, str):  # For categories with only strings
+                if isinstance(item, str):  
                     st.write(item)
-                elif isinstance(item, dict):  # For categories with prompts and queries
+                elif isinstance(item, dict):  
                     st.write(f"**Prompt:** {item.get('prompt', 'N/A')}")
                     st.write(f"**SQL Query:** {item.get('sql_query', 'N/A')}")
                     st.write(f"**Results:**")
@@ -55,7 +53,7 @@ def prompts_page():
                     st.write(f"**Summary:** {item.get('summary', 'N/A')}")
 
     if st.button('Clear All Prompts'):
-        prompts = {"gpt_zero_shot": [], "gpt_one_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
+        prompts = {"gpt3.5_zero_shot": [], "gpt3.5_one_shot": [], "gpt3.5_two_shot": [], "gpt4_zero_shot": [], "gpt4_one_shot": [], "gpt4_two_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
         save_prompts(prompts)
         st.success("All prompts cleared.")
 
@@ -71,6 +69,5 @@ def prompts_page():
         else:
             st.write("No prompts to delete.")
 
-# Main entry point
 if __name__ == "__main__":
     prompts_page()

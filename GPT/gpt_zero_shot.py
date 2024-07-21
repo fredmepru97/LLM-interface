@@ -1,10 +1,12 @@
-from groq import Groq
+import openai
 import streamlit as st
 import duckdb
+import os
 from dotenv import dotenv_values
 
 config = dotenv_values(".env")
-api_key = config['GROQ_API_KEY']
+api_key = config['OPENAI_API_KEY']
+
 
 additional_info = {
     "papers": {
@@ -16,7 +18,7 @@ additional_info = {
             "abstract": "text paragraph with the complete abstract of a research article",
             "journal_akronym": "abbreviation of the journal name",
             "citation_count": "how often was the paper cited from papers in our database",
-            }
+        }
     },
     "sentences": {
         "purpose": "All individual sentences of every paper in the database. one row is one sentence.",
@@ -71,15 +73,47 @@ additional_info = {
             "citekey": "the reference_citekey from table citations",
             "para_id": "unique para_id for each individual paragraph"
         }
+    },
+    "authors": {
+        "purpose": """All authors of the papers in the database. One row is one author""",
+        "columns": {
+            "author_position": "the position of the author in the author list",
+            "full_name": "full name of the author",
+            "institutions": "institution of the author",
+        }
+    },
+    "keywords": {
+        "purpose": """All individual keywords from the papers in the database. One row is one keyword""",
+        "columns": {
+            "article_id": "the article_id which maps to table papers",
+            "keyword": "the keyword"
+        }
+    },
+    "subsections": {
+        "purpose": """All individual subsections of every paper in the database. One row is one subsection.""",
+        "columns": {
+            "section_id": "unique section_id for each individual section",
+            "section_nr": "section counter for each article (starts with 0 (or 1) for each article)",
+            "section_title": "title of the section",
+            "subsection_title": "title of the subsection"
+        }
+    },
+    "synonyms": {
+        "purpose": """All synonyms for the ent_ids in the IS Ontology. One row is one synonym.""",
+        "columns": {
+            "ent_id": "the ent_id from the IS Ontology",
+            "synonym": "a synonym for an ent_id"
+        }
     }
 }
 
-def llama_app():
+def gpt_zero_shot_app():
     if not api_key:
-        st.error("Groq API key not found. Please set it in the .env file.")
+        st.error("OpenAI API key not found. Please set it in the .env file.")
     else:
         conn = duckdb.connect(database='isrecon_all.duckdb')
-        groq = Groq(api_key=api_key)
+        current_schema = conn.execute("SELECT current_schema()").fetchone()
+        client = openai.OpenAI(api_key=api_key)
 
         def fetch_schema_info():
             try:
@@ -102,44 +136,49 @@ def llama_app():
 
         # Fetch schema information
         schema_info = fetch_schema_info()
-        st.title("Natural Language to SQL Query Transformer using Llama3-70b-8192")
+        st.title("Natural Language to SQL Query Transformer using GPT-3.5 Turbo")
         st.text("-------------------------------------------------------------------------------")
-        st.subheader("Part 1: Convert natural language to SQL queries")
+        st.subheader("Zero-Shot: Convert natural language to SQL queries with zero-shot prompting")
 
-        query = st.text_area('Enter your text to generate SQL query', '')
+        query = st.text_area('Enter your text to generate SQL query', '', key='gpt_zero_shot_query')
 
         def generate_sql(prompt, schema_info):
             schema_info_str = "\n".join(
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
                 for table, info in schema_info.items()])
-            enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters. Simply output the SQL query."
+            enhanced_prompt = f"""
+                    {schema_info_str}\n\n
+                    You have been given the schema of a DuckDB database. 
+                    Generate a SQL query to this statement: {prompt}.
+                    Consider all possible ways within the database tables to get the correct answer from.
+                    You are allowed to use multiple tables in the SQL query.
+                    Always prefer using ILIKE instead of LIKE for case-insensitive matching.
+                    Alias the columns in the SELECT statement extremely precisely.
+                    Do not include any non SQL related characters. While generating the SQL query, consider any edge cases the prompt may have.
+                    E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
+                    is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
+                    of intelligence are capitalized."""
 
-            response = groq.chat.completions.create(
-                        model="llama3-70b-8192",
-                        messages=[
-                {
-                    "role": "user",
-                    "content": enhanced_prompt
-                }
-            ],
-                    temperature=0,
-                    max_tokens=1024,
-                    top_p=1,
-                    stream=True,
-                    stop=None,
-                )
-            sql_query = ""
-            for chunk in response:
-                sql_query += chunk.choices[0].delta.content or ""
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
+                max_tokens=500,
+                temperature=0,
+                stop=["#", ";"]
+            )
+            sql_query = response.choices[0].message.content.strip()
+            sql_start = sql_query.lower().find("select")
+            if sql_start != -1:
+                sql_query = sql_query[sql_start:]
+            sql_query = sql_query.strip()
+            sql_query = sql_query.replace("\n", " ")
+            sql_query = sql_query.replace("`", "")
 
-            sql_query = sql_query.replace("```", "").strip()
-
-            # Remove any non-SQL preamble
-            lines = sql_query.split('\n')
-            for i, line in enumerate(lines):
-                if "SELECT" in line.upper():
-                    sql_query = "\n".join(lines[i:])
-                    break
+            # List of keywords to insert line breaks before
+            keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
+            # Insert line breaks before keywords
+            for keyword in keywords:
+                sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
 
             return sql_query
 
@@ -162,8 +201,8 @@ def llama_app():
             summary = " \n\n"
             content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
             
-            response = groq.chat.completions.create(
-                model="llama3-70b-8192",
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a summarization expert."},
                     {"role": "user", "content": content_summary_prompt}
@@ -176,13 +215,13 @@ def llama_app():
             summary += f"\n\n{content_summary}"
             return summary
         
-        if st.button('Generate SQL query'):
+        if st.button('Generate SQL query', key='gpt_zero_shot_generate'):
             if len(query) > 0:
                 sql_query = generate_sql(query, schema_info)
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
-                st.subheader("Part 2: Query Results")
+                st.subheader("Zero-Shot: Query Results")
                 result = execute_sql(sql_query)
                 if isinstance(result, str):
                     st.error(result)
@@ -192,5 +231,5 @@ def llama_app():
                     else:
                         st.dataframe(result)
                         summary = summarize_results(result)
-                        st.subheader("Part 3: Summary of Results")
+                        st.subheader("Zero-Shot: Summary of Results")
                         st.write(summary)

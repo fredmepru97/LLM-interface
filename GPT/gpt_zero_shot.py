@@ -3,18 +3,24 @@ import streamlit as st
 import duckdb
 import os
 from dotenv import dotenv_values
+import json
 
+# Load API key from .env file
 config = dotenv_values(".env")
 api_key = config['OPENAI_API_KEY']
+if not api_key:
+    st.error("OpenAI API key not found. Please set it in your environment variables.")
+    st.stop()
 
+PROMPTS_FILE = 'prompts.json'
 
+# Additional schema information
 additional_info = {
     "papers": {
         "purpose": "Master Data of all papers in our database. One row is one paper.",
         "columns": {
             "article_id": "unique identifier for an article; used in many other tables as well; can be used for joining data with data from other tables",
-            "citekey": """Some tables only have a citekey and no article_id, then you can use the citeley to join the tables 
-                (stays the same though different runs)""",
+            "citekey": "Some tables only have a citekey and no article_id, then you can use the citeley to join the tables (stays the same though different runs)",
             "abstract": "text paragraph with the complete abstract of a research article",
             "journal_akronym": "abbreviation of the journal name",
             "citation_count": "how often was the paper cited from papers in our database",
@@ -41,13 +47,10 @@ additional_info = {
         }
     },
     "entities": {
-        "purpose": """All individual entities from the ontology that we found in any paper of the database entity (see column 'entity', not 'ent_id'). 
-                    One row is one appearance of an entity in an article. 
-                    If 'survey' appears multiple times in a paper, we get multiple rows.""",
+        "purpose": "All individual entities from the ontology that we found in any paper of the database entity (see column 'entity', not 'ent_id'). One row is one appearance of an entity in an article. If 'survey' appears multiple times in a paper, we get multiple rows.",
         "columns": {
             "ent_id": "the ent_id from an entity in the IS Ontology, see",
-            "entity": """The synonym that was used in a text (not the direct name of an ent_id, but a synonym for an ent_id - see table synonyms),
-                 e.g. entity='platform strategy', ent_id='digital platform'""",
+            "entity": "The synonym that was used in a text (not the direct name of an ent_id, but a synonym for an ent_id - see table synonyms), e.g. entity='platform strategy', ent_id='digital platform'",
             "sentence": "modified sentence where we replaced acronyms with the full name"
         }
     },
@@ -60,22 +63,21 @@ additional_info = {
         }
     },
     "citations": {
-        "purpose": """All individual citations from our database. If an author of an article cites another paper somewhere in the text, we create an entry in this table.
-                    one row is one individual citation""",
+        "purpose": "All individual citations from our database. If an author of an article cites another paper somewhere in the text, we create an entry in this table. one row is one individual citation",
         "columns": {
             "reference_citekey": "what article is cited? This is the citekey in table sources",
             "paper_citekey": "links to table papers"
         }
     },
     "sources": {
-        "purpose": """All individual sources that come from the reference section of papers in our database. one row is one source""",
+        "purpose": "All individual sources that come from the reference section of papers in our database. one row is one source",
         "columns": {
             "citekey": "the reference_citekey from table citations",
             "para_id": "unique para_id for each individual paragraph"
         }
     },
     "authors": {
-        "purpose": """All authors of the papers in the database. One row is one author""",
+        "purpose": "All authors of the papers in the database. One row is one author",
         "columns": {
             "author_position": "the position of the author in the author list",
             "full_name": "full name of the author",
@@ -83,14 +85,14 @@ additional_info = {
         }
     },
     "keywords": {
-        "purpose": """All individual keywords from the papers in the database. One row is one keyword""",
+        "purpose": "All individual keywords from the papers in the database. One row is one keyword",
         "columns": {
             "article_id": "the article_id which maps to table papers",
             "keyword": "the keyword"
         }
     },
     "subsections": {
-        "purpose": """All individual subsections of every paper in the database. One row is one subsection.""",
+        "purpose": "All individual subsections of every paper in the database. One row is one subsection.",
         "columns": {
             "section_id": "unique section_id for each individual section",
             "section_nr": "section counter for each article (starts with 0 (or 1) for each article)",
@@ -99,13 +101,25 @@ additional_info = {
         }
     },
     "synonyms": {
-        "purpose": """All synonyms for the ent_ids in the IS Ontology. One row is one synonym.""",
+        "purpose": "All synonyms for the ent_ids in the IS Ontology. One row is one synonym.",
         "columns": {
             "ent_id": "the ent_id from the IS Ontology",
             "synonym": "a synonym for an ent_id"
         }
     }
 }
+
+def load_prompts():
+    """Load prompts from a JSON file."""
+    if os.path.exists(PROMPTS_FILE):
+        with open(PROMPTS_FILE, 'r') as f:
+            return json.load(f)
+    return {"gpt_zero_shot": [], "gpt_one_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
+
+def save_prompts(prompts):
+    """Save prompts to a JSON file."""
+    with open(PROMPTS_FILE, 'w') as f:
+        json.dump(prompts, f, indent=4)
 
 def gpt_zero_shot_app():
     if not api_key:
@@ -174,9 +188,7 @@ def gpt_zero_shot_app():
             sql_query = sql_query.replace("\n", " ")
             sql_query = sql_query.replace("`", "")
 
-            # List of keywords to insert line breaks before
             keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
-            # Insert line breaks before keywords
             for keyword in keywords:
                 sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
 
@@ -198,7 +210,10 @@ def gpt_zero_shot_app():
                 conn.close()
 
         def summarize_results(results):
-            summary = " \n\n"
+            if isinstance(results, str):
+                return f"Error while executing the query: {results}"
+            
+            summary = "\n\n"
             content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
             
             response = client.chat.completions.create(
@@ -214,15 +229,28 @@ def gpt_zero_shot_app():
             
             summary += f"\n\n{content_summary}"
             return summary
-        
+
         if st.button('Generate SQL query', key='gpt_zero_shot_generate'):
             if len(query) > 0:
+                prompts = load_prompts()
                 sql_query = generate_sql(query, schema_info)
+                result = execute_sql(sql_query)
+                summary = summarize_results(result)
+
+                new_entry = {
+                    "prompt": query,
+                    "sql_query": sql_query,
+                    "results": result.to_dict() if not isinstance(result, str) else result,
+                    "summary": summary
+                }
+
+                prompts["gpt_zero_shot"].append(new_entry)
+                save_prompts(prompts)
+
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
                 st.subheader("Zero-Shot: Query Results")
-                result = execute_sql(sql_query)
                 if isinstance(result, str):
                     st.error(result)
                 else:
@@ -230,6 +258,12 @@ def gpt_zero_shot_app():
                         st.warning("No results found.")
                     else:
                         st.dataframe(result)
-                        summary = summarize_results(result)
                         st.subheader("Zero-Shot: Summary of Results")
                         st.write(summary)
+
+# Main entry point
+def main():
+    gpt_zero_shot_app()
+
+if __name__ == "__main__":
+    main()

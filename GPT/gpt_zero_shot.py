@@ -176,7 +176,6 @@ def gpt_zero_shot_app():
 
             # List of keywords to insert line breaks before
             keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
-            
             # Insert line breaks before keywords
             for keyword in keywords:
                 sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")

@@ -36,21 +36,22 @@ def prompts_page():
         prompts = load_prompts()
     
     for category, prompt_list in prompts.items():
-        st.subheader(f"{category.capitalize()} Prompts")
-        if not prompt_list:
-            st.write("No prompts saved.")
-        else:
-            for idx, item in enumerate(prompt_list):
-                st.write(f"### Prompt {idx + 1}")
-                if isinstance(item, str):  
-                    st.write(item)
-                elif isinstance(item, dict):  
-                    st.write(f"**Prompt:** {item.get('prompt', 'N/A')}")
-                    st.write(f"**SQL Query:** {item.get('sql_query', 'N/A')}")
-                    st.write(f"**Results:**")
-                    results = item.get('results', 'No results')
-                    display_results(results)
-                    st.write(f"**Summary:** {item.get('summary', 'N/A')}")
+        with st.expander(f"{category.capitalize()} Prompts", expanded=False):
+            if not prompt_list:
+                st.write("No prompts saved.")
+            else:
+                prompt_list = prompt_list[::-1]
+                for idx, item in enumerate(prompt_list):
+                    st.write(f"### Prompt {idx + 1}")
+                    if isinstance(item, str):  
+                        st.write(item)
+                    elif isinstance(item, dict):  
+                        st.write(f"**Prompt:** {item.get('prompt', 'N/A')}")
+                        st.write(f"**SQL Query:** {item.get('sql_query', 'N/A')}")
+                        st.write(f"**Results:**")
+                        results = item.get('results', 'No results')
+                        display_results(results)
+                        st.write(f"**Summary:** {item.get('summary', 'N/A')}")
 
     if st.button('Clear All Prompts'):
         prompts = {"gpt3.5_zero_shot": [], "gpt3.5_one_shot": [], "gpt3.5_two_shot": [], "gpt4_zero_shot": [], "gpt4_one_shot": [], "gpt4_two_shot": [], "llama_zero_shot": [], "llama_one_shot": []}

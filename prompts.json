@@ -74,6 +74,16 @@
                 }
             },
             "summary": "\n\n\n\nThe data provided consists of a list of journals and the total number of articles published in each journal. \n\n1. The European Conference On Information Systems has published a total of 5400 articles.\n2. Information and Organization journal has published 417 articles.\n3. None of the journals is indicated as having 287 articles.\n4. The Information Systems Journal has published 912 articles.\n5. The European Journal of Information Systems has published 1223 articles.\n6. ACM Transactions on Management Information Systems has published 315 articles.\n7. Information & Management journal has published 2041 articles.\n8. Group Decision and Negotiation journal has published 1188 articles.\n9. Information Systems Research has published 1284 articles.\n10. Journal of the Association for Information Systems has published 816 articles.\n11. ICIS journal has published 4 articles.\n12. International Journal of Information Management has published 2251 articles.\n13. ACM SIGMIS Database has published 702 articles.\n14. DESRIST journal has published 521 articles.\n15. Electronic Markets journal has published 788 articles.\n16. Wirtschaftsinformatik journal has published 603 articles.\n17. Communications of the Association for Information Systems has published 1815 articles.\n18. Journal of Information Technology has published 744 articles.\n19. Decision Support Systems has published 3367 articles.\n20. Journal of Management Information Systems has published 1327 articles.\n21. Information Systems Management has published 1094"
+        },
+        {
+            "prompt": "give me total articles ",
+            "sql_query": "SELECT COUNT(DISTINCT article_id) AS total_articles\nFROM papers",
+            "results": {
+                "total_articles": {
+                    "0": 57399
+                }
+            },
+            "summary": "\n\n\n\nThe data provided indicates that there are a total of 57,399 articles. This number represents the total count of articles within a specific context or dataset. It signifies the volume or quantity of articles that are present and available for analysis, research, or consumption. The information does not provide specific details about the content, nature, or distribution of the articles, but simply states the overall count of articles present in the dataset."
         }
     ],
     "gpt3.5_one_shot": [

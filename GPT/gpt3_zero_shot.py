@@ -159,31 +159,39 @@ def gpt3_zero_shot_app():
             enhanced_prompt = f"""
                     {schema_info_str}\n\n
                     You have been given the schema of a DuckDB database. 
-                    Generate a SQL query to this statement: {prompt}.
+                    Generate a SQL query to this statement: {prompt} and give the confidence from 0 to 1 you have in the SQL query specificed to 3 decimal places.
                     Consider all possible ways within the database tables to get the correct answer from.
                     You are allowed to use multiple tables in the SQL query.
-                    Do not include any non SQL related characters."""
-
+                    You must output the result in the following JSON format:
+                    {{
+                        "sql_query": "<SQL_QUERY>",
+                        "confidence": <CONFIDENCE>
+                    }}
+                    Ensure that the value of "sql_query" starts on the same line as the key.
+                    """
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
+                messages=[{"role": "system", "content": "You will be required to generate SQL."}, {"role": "user", "content": enhanced_prompt}],
                 max_tokens=500,
                 temperature=0,
                 stop=["#", ";"]
             )
-            sql_query = response.choices[0].message.content.strip()
-            sql_start = sql_query.lower().find("select")
-            if sql_start != -1:
-                sql_query = sql_query[sql_start:]
-            sql_query = sql_query.strip()
-            sql_query = sql_query.replace("\n", " ")
-            sql_query = sql_query.replace("`", "")
+            response_content = response.choices[0].message.content.strip()
 
+            # Parsing SQL query and the confidence
+            
+            try:
+                response_json = json.loads(response_content)
+                sql_query = response_json.get("sql_query", "").strip()
+                confidence = response_json.get("confidence", 0.0)
+            except json.JSONDecodeError:
+                sql_query = ""
+                confidence = 0.0
             keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
             for keyword in keywords:
                 sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
 
-            return sql_query
+            return sql_query, confidence
 
         def execute_sql(sql_query):
             try:
@@ -224,7 +232,7 @@ def gpt3_zero_shot_app():
         if st.button('Generate SQL query', key='gpt3.5_zero_shot_generate'):
             if len(query) > 0:
                 prompts = load_prompts()
-                sql_query = generate_sql(query, schema_info)
+                sql_query, confidence = generate_sql(query, schema_info)
                 result = execute_sql(sql_query)
                 summary = summarize_results(result)
 
@@ -240,6 +248,7 @@ def gpt3_zero_shot_app():
 
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
+                st.write("Confidence in the SQL Query:", confidence)
                 
                 st.subheader("GPT 3.5 Zero-Shot: Query Results")
                 if isinstance(result, str):

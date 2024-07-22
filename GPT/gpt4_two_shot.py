@@ -187,24 +187,27 @@ def gpt4_two_shot_app():
 
             response = client.chat.completions.create(
                 model="gpt-4",
-                messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
+                messages=[{"role": "system", "content": "You will be required to generate SQL."}, {"role": "user", "content": enhanced_prompt}],
                 max_tokens=500,
                 temperature=0,
                 stop=["#", ";"]
             )
-            sql_query = response.choices[0].message.content.strip()
-            sql_start = sql_query.lower().find("select")
-            if sql_start != -1:
-                sql_query = sql_query[sql_start:]
-            sql_query = sql_query.strip()
-            sql_query = sql_query.replace("\n", " ")
-            sql_query = sql_query.replace("`", "")
+            response_content = response.choices[0].message.content.strip()
 
+            # Parsing SQL query and the confidence
+            
+            try:
+                response_json = json.loads(response_content)
+                sql_query = response_json.get("sql_query", "").strip()
+                confidence = response_json.get("confidence", 0.0)
+            except json.JSONDecodeError:
+                sql_query = ""
+                confidence = 0.0
             keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
             for keyword in keywords:
                 sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
 
-            return sql_query
+            return sql_query, confidence
 
         def execute_sql(sql_query):
             try:

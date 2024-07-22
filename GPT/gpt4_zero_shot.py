@@ -226,13 +226,13 @@ def gpt4_zero_shot_app():
                 prompts = load_prompts()
                 sql_query = generate_sql(query, schema_info)
                 result = execute_sql(sql_query)
-                summary = summarize_results(result)
+                # summary = summarize_results(result)
 
                 new_entry = {
                     "prompt": query,
                     "sql_query": sql_query,
                     "results": result.to_dict() if not isinstance(result, str) else result,
-                    "summary": summary
+                    # "summary": summary
                 }
 
                 prompts["gpt4_zero_shot"].append(new_entry)
@@ -249,8 +249,8 @@ def gpt4_zero_shot_app():
                         st.warning("No results found.")
                     else:
                         st.dataframe(result)
-                        st.subheader("GPT 4 Zero-Shot: Summary of Results")
-                        st.write(summary)
+                        # st.subheader("GPT 4 Zero-Shot: Summary of Results")
+                        # st.write(summary)
 
 def main():
     gpt4_zero_shot_app()

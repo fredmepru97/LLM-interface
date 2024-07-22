@@ -164,9 +164,9 @@ def gpt4_two_shot_app():
                     The appropriate SQL query for this statement is:
                     SELECT DISTINCT p.title AS paper_name, p.abstract, p.journal AS journal_name, p.year AS publication_year
                     FROM papers p 
-                    JOIN sentences s
+                    LEFT JOIN sentences s
                     ON p.article_id = s.article_id
-                    JOIN entities e1
+                    LEFT JOIN entities e1
                     ON s.article_id = e1.article_id
                     AND s.sentence_id = e1.sentence_id 
                     WHERE 

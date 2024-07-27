@@ -1,0 +1,5 @@
+openai
+streamlit
+duckdb
+groq
+python-dotenv

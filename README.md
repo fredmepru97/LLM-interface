@@ -2,6 +2,10 @@
 
 Welcome to the LLM Interfaces for Databases project! This README provides instructions on how to set up and run the application using Docker.
 
+## Disclaimer
+
+Although there is a tab for Llama, it is still under development.
+
 ## Prerequisites
 
 Before running the application, please ensure you have the following:

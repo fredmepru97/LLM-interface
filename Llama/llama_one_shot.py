@@ -109,10 +109,10 @@ def llama_one_shot_app():
         # Fetch schema information
         schema_info = fetch_schema_info()
         st.text("-------------------------------------------------------------------------------")
-        st.subheader("One-Shot: Convert natural language to SQL queries with zero-shot prompting.")
+        st.subheader("One-Shot: Convert natural language to SQL queries with one-shot prompting.")
 
         # User input for generating SQL query
-        query = st.text_area('Enter your text to generate SQL query', '')
+        query = st.text_area('Enter your text to generate a SQL query', '')
 
         # Combine schema information with the user prompt to create an enhanced prompt for LLaMA
         def generate_sql(prompt, schema_info):
@@ -193,7 +193,7 @@ def llama_one_shot_app():
             return summary
         
         # Button to trigger the SQL generation and execution process
-        if st.button('Generate SQL query'):
+        if st.button('Produce a SQL query'):
             if len(query) > 0:
                 # Generate SQL query based on the user input and schema information
                 sql_query = generate_sql(query, schema_info)

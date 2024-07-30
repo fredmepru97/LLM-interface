@@ -29,7 +29,7 @@ def main():
         st.write("- You can navigate to the Saved Prompts page to view, add, and delete used prompts.")
         st.text("-------------------------------------------------------------------------------")
         
-    elif page == "GPT 3.5 Turbo":
+    elif page == "GPT 3.5":
             # Load GPT-3.5 Turbo apps for zero-shot, one-shot, and two-shot prompting
             gpt3_zero_shot_app()
             gpt3_one_shot_app()

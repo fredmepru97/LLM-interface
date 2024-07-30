@@ -152,7 +152,7 @@ def gpt3_few_shot_app():
 
         schema_info = fetch_schema_info()
         st.text("-------------------------------------------------------------------------------")
-        st.subheader("Few-Shot: Convert natural language to SQL queries with two-shot prompting")
+        st.subheader("Few-Shot: Convert natural language to SQL queries with few-shot prompting")
 
         # User input for generating SQL query
         query = st.text_area('Enter your text to generate SQL query', '', key='gpt3.5_two_shot_query')

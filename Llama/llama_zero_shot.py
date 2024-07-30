@@ -194,7 +194,7 @@ def llama_zero_shot_app():
             return summary
         
         # Button to trigger the SQL generation and execution process
-        if st.button('Generate SQL query'):
+        if st.button('Generate a SQL query'):
             if len(query) > 0:
                 # Generate SQL query based on the user input and schema information
                 sql_query = generate_sql(query, schema_info)

@@ -44,3 +44,6 @@ For any questions or issues, please feel free to reach out to the project mainta
 ---
 
 Enjoy using the LLM Interfaces for Databases!
+
+## GitHb Link
+https://github.com/fredmepru97/LLM-interface

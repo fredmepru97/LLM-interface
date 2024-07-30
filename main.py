@@ -9,10 +9,12 @@ from GPT.gpt4_one_shot import gpt4_one_shot_app
 from GPT.gpt4_two_shot import gpt4_two_shot_app
 from prompt_saver import prompts_page
 
+# Create a sidebar for navigation
 def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Go to", ["Home Page", "GPT 3.5 Turbo", "GPT 4", "Llama", "Saved Prompts"])
 
+# Define the content for each page
     if page == "Home Page":
         st.title("Welcome to LLM Interface for Databases!") 
         st.text("-------------------------------------------------------------------------------")
@@ -28,17 +30,21 @@ def main():
         st.text("-------------------------------------------------------------------------------")
         
     elif page == "GPT 3.5 Turbo":
+            # Load GPT-3.5 Turbo apps for zero-shot, one-shot, and two-shot prompting
             gpt3_zero_shot_app()
             gpt3_one_shot_app()
             gpt3_two_shot_app()
     elif page == "GPT 4":
+            # Load GPT-4 apps for zero-shot, one-shot, and two-shot prompting
             gpt4_zero_shot_app()
             gpt4_one_shot_app()
             gpt4_two_shot_app()
     elif page == "Llama":
+            # Load Llama apps for zero-shot and one-shot prompting
             llama_zero_shot_app()
             llama_one_shot_app()
     elif page == "Saved Prompts":
+            # Load the Saved Prompts page
             prompts_page()
 
 if __name__ == "__main__":

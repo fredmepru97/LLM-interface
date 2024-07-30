@@ -5,14 +5,17 @@ import os
 from dotenv import dotenv_values
 import json
 
+# Load API key from environment variables
 config = dotenv_values(".env")
 api_key = config['OPENAI_API_KEY']
 if not api_key:
     st.error("OpenAI API key not found. Please set it in your environment variables.")
     st.stop()
 
+# Path to prompts file
 PROMPTS_FILE = 'prompts.json'
 
+# Dictionary containing metadata about each table in the database, including the purpose of each table and descriptions of columns
 additional_info = {
     "papers": {
         "purpose": "Master Data of all papers in our database. One row is one paper.",
@@ -119,14 +122,17 @@ def save_prompts(prompts):
     with open(PROMPTS_FILE, 'w') as f:
         json.dump(prompts, f, indent=4)
 
+# Main function to handle user input, generate SQL queries, execute them, and display results
 def gpt3_two_shot_app():
     if not api_key:
         st.error("OpenAI API key not found. Please set it in the .env file.")
     else:
+        # Establish a connection to the DuckDB database
         conn = duckdb.connect(database='isrecon_all.duckdb')
         current_schema = conn.execute("SELECT current_schema()").fetchone()
         client = openai.OpenAI(api_key=api_key)
 
+        # Function to fetch schema information from the database
         def fetch_schema_info():
             try:
                 tables = conn.execute("SHOW TABLES").fetchall()
@@ -149,8 +155,10 @@ def gpt3_two_shot_app():
         st.text("-------------------------------------------------------------------------------")
         st.subheader("Two-Shot: Convert natural language to SQL queries with two-shot prompting")
 
+        # User input for generating SQL query
         query = st.text_area('Enter your text to generate SQL query', '', key='gpt3.5_two_shot_query')
 
+        # Combine schema information with the user prompt to create an enhanced prompt for the LLM
         def generate_sql(prompt, schema_info):
             schema_info_str = "\n".join(
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
@@ -184,7 +192,8 @@ def gpt3_two_shot_app():
                     E.g. if a prompt is asking for a column name, consider the possibility that the column name may have a space in it. Or, if a prompt
                     is asking about how many articles mention the phrase business intelligence, then you must also consider where B of business and I
                     of intelligence are capitalized."""
-
+            
+            # Generate SQL query using the GPT-3.5 model
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "system", "content": "You are an SQL expert."}, {"role": "user", "content": enhanced_prompt}],
@@ -200,12 +209,14 @@ def gpt3_two_shot_app():
             sql_query = sql_query.replace("\n", " ")
             sql_query = sql_query.replace("`", "")
 
+            # List of keywords to insert line breaks
             keywords = [" FROM ", " WHERE "," JOIN ", " INNER JOIN ", " LEFT JOIN ", " RIGHT JOIN ", " ON ", " AND ", " OR ", " GROUP BY ", " ORDER BY ", " LIMIT "]
             for keyword in keywords:
                 sql_query = sql_query.replace(keyword, f"\n{keyword.strip()} ")
 
             return sql_query
 
+            # Execute the generated SQL query on the DuckDB database
         def execute_sql(sql_query):
             try:
                 result_df = conn.execute(sql_query).fetchdf()
@@ -221,13 +232,17 @@ def gpt3_two_shot_app():
             finally:
                 conn.close()
 
+            # Function to generate a summary of the SQL query results  
         def summarize_results(results):
             if isinstance(results, str):
                 return f"Error while executing the query: {results}"
             
+            # Initialize an empty summary string
             summary = "\n\n"
+            # Create a prompt for the summarry based on the SQL query results
             content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
             
+            # Generate a summary using the GPT-3.5 model
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -237,11 +252,15 @@ def gpt3_two_shot_app():
                 max_tokens=300,
                 stop=["#", ";"]
             )
+
+            # Extract the content of the summary from the response
             content_summary = response.choices[0].message.content.strip()
             
+            # Append the generated summary to the summary string
             summary += f"\n\n{content_summary}"
             return summary
 
+            # Button to trigger the SQL generation and execution process
         if st.button('Generate SQL query', key='gpt3.5_two_shot_generate'):
             if len(query) > 0:
                 prompts = load_prompts()
@@ -273,6 +292,7 @@ def gpt3_two_shot_app():
                         st.subheader("GPT 3.5 Two-Shot: Summary of Results")
                         st.write(summary)
 
+# Main function to run the Streamlit app
 def main():
     gpt3_two_shot_app()
 

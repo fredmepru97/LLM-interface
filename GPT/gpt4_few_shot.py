@@ -122,12 +122,7 @@ def save_prompts(prompts):
     with open(PROMPTS_FILE, 'w') as f:
         json.dump(prompts, f, indent=4)
 
-<<<<<<< HEAD:GPT/gpt4_few_shot.py
 def gpt4_few_shot_app():
-=======
-# Main function to handle user input, generate SQL queries, execute them, and display results
-def gpt4_two_shot_app():
->>>>>>> origin/comments:GPT/gpt4_two_shot.py
     if not api_key:
         st.error("OpenAI API key not found. Please set it in the .env file.")
     else:

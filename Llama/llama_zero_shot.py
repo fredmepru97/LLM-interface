@@ -104,7 +104,7 @@ def llama_zero_shot_app():
         schema_info = fetch_schema_info()
         st.title("Natural Language to SQL Query Transformer using Llama3-70b-8192")
         st.text("-------------------------------------------------------------------------------")
-        st.subheader("Part 1: Convert natural language to SQL queries")
+        st.subheader("Zero-Shot: Convert natural language to SQL queries with zero-shot prompting")
 
         query = st.text_area('Enter your text to generate SQL query', '')
 

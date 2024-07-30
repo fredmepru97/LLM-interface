@@ -119,7 +119,7 @@ def save_prompts(prompts):
     with open(PROMPTS_FILE, 'w') as f:
         json.dump(prompts, f, indent=4)
 
-def gpt3_two_shot_app():
+def gpt3_few_shot_app():
     if not api_key:
         st.error("OpenAI API key not found. Please set it in the .env file.")
     else:
@@ -147,7 +147,7 @@ def gpt3_two_shot_app():
 
         schema_info = fetch_schema_info()
         st.text("-------------------------------------------------------------------------------")
-        st.subheader("Two-Shot: Convert natural language to SQL queries with two-shot prompting")
+        st.subheader("Few-Shot: Convert natural language to SQL queries with two-shot prompting")
 
         query = st.text_area('Enter your text to generate SQL query', '', key='gpt3.5_two_shot_query')
 
@@ -274,7 +274,7 @@ def gpt3_two_shot_app():
                         st.write(summary)
 
 def main():
-    gpt3_two_shot_app()
+    gpt3_few_shot_app()
 
 if __name__ == "__main__":
     main()

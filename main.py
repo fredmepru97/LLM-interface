@@ -2,11 +2,11 @@ import streamlit as st
 from Llama.llama_zero_shot import llama_zero_shot_app
 from Llama.llama_one_shot import llama_one_shot_app
 from GPT.gpt3_one_shot import gpt3_one_shot_app
-from GPT.gpt3_two_shot import gpt3_two_shot_app
+from GPT.gpt3_few_shot import gpt3_few_shot_app
 from GPT.gpt3_zero_shot import gpt3_zero_shot_app
 from GPT.gpt4_zero_shot import gpt4_zero_shot_app
 from GPT.gpt4_one_shot import gpt4_one_shot_app
-from GPT.gpt4_two_shot import gpt4_two_shot_app
+from GPT.gpt4_few_shot import gpt4_few_shot_app
 from prompt_saver import prompts_page
 
 def main():
@@ -30,11 +30,11 @@ def main():
     elif page == "GPT 3.5":
             gpt3_zero_shot_app()
             gpt3_one_shot_app()
-            gpt3_two_shot_app()
+            gpt3_few_shot_app()
     elif page == "GPT 4":
             gpt4_zero_shot_app()
             gpt4_one_shot_app()
-            gpt4_two_shot_app()
+            gpt4_few_shot_app()
     elif page == "Llama":
             llama_zero_shot_app()
             llama_one_shot_app()

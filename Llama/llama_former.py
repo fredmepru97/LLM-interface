@@ -3,9 +3,11 @@ from dotenv import dotenv_values
 import duckdb
 import streamlit as st
 
+# Load API key from environment variables
 config = dotenv_values(".env")
 api_key = config['GROQ_API_KEY']
 
+# Establish a connection to the DuckDB database
 conn = duckdb.connect(database='isrecon_all.duckdb')
 current_schema = conn.execute("SELECT current_schema()").fetchone()
 

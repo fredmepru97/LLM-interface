@@ -3,6 +3,7 @@ import json
 import os
 import pandas as pd
 
+# Path to prompts file
 PROMPTS_FILE = 'prompts.json'
 
 def load_prompts():
@@ -28,18 +29,22 @@ def display_results(results):
 def prompts_page():
     st.title("Prompt Saver")
 
+    # Load existing prompts from the JSON file
     prompts = load_prompts()
     
     st.subheader("Saved Prompts")
     
+    # Refresh button to reload prompts
     if st.button('Refresh'):
         prompts = load_prompts()
-    
+
+    # Display each category of prompts
     for category, prompt_list in prompts.items():
         with st.expander(f"{category.capitalize()} Prompts", expanded=False):
             if not prompt_list:
                 st.write("No prompts saved.")
             else:
+                # Reverse the list to display the most recent prompts first
                 prompt_list = prompt_list[::-1]
                 for idx, item in enumerate(prompt_list):
                     st.write(f"### Prompt {idx + 1}")
@@ -53,11 +58,13 @@ def prompts_page():
                         display_results(results)
                         st.write(f"**Summary:** {item.get('summary', 'N/A')}")
 
+    # Button to clear all saved prompts
     if st.button('Clear All Prompts'):
         prompts = {"gpt3.5_zero_shot": [], "gpt3.5_one_shot": [], "gpt3.5_two_shot": [], "gpt4_zero_shot": [], "gpt4_one_shot": [], "gpt4_two_shot": [], "llama_zero_shot": [], "llama_one_shot": []}
         save_prompts(prompts)
         st.success("All prompts cleared.")
 
+    # Enable individual prompt deletion
     if st.checkbox("Enable individual prompt deletion by number"):
         category = st.selectbox("Select category to delete from", list(prompts.keys()))
         if prompts[category]:

@@ -3,9 +3,11 @@ import streamlit as st
 import duckdb
 from dotenv import dotenv_values
 
+# Load API key from environment variables
 config = dotenv_values(".env")
 api_key = config['GROQ_API_KEY']
 
+# Dictionary containing metadata about each table in the database, including the purpose of each table and descriptions of columns
 additional_info = {
     "papers": {
         "purpose": "Master Data of all papers in our database. One row is one paper.",
@@ -74,13 +76,17 @@ additional_info = {
     }
 }
 
+# Main function to handle user input, generate SQL queries, execute them, and display results
 def llama_zero_shot_app():
     if not api_key:
         st.error("Groq API key not found. Please set it in the .env file.")
     else:
+        # Establish a connection to the DuckDB database
         conn = duckdb.connect(database='isrecon_all.duckdb')
+        # Initialize the Groq API client
         groq = Groq(api_key=api_key)
 
+        # Function to fetch schema information from the database
         def fetch_schema_info():
             try:
                 tables = conn.execute("SHOW TABLES").fetchall()
@@ -106,14 +112,17 @@ def llama_zero_shot_app():
         st.text("-------------------------------------------------------------------------------")
         st.subheader("Zero-Shot: Convert natural language to SQL queries with zero-shot prompting")
 
+        # User input for generating SQL query
         query = st.text_area('Enter your text to generate SQL query', '')
 
+        # Combine schema information with the user prompt to create an enhanced prompt for LLaMA
         def generate_sql(prompt, schema_info):
             schema_info_str = "\n".join(
                 [f"Table '{table}': Purpose: {info.get('purpose', 'N/A')}\nColumns: {', '.join([f'{col}: {desc}' for col, desc in info['columns'].items()])}" 
                 for table, info in schema_info.items()])
             enhanced_prompt = f"{schema_info_str}\n\nGenerate a SQL query to {prompt}, and do not include any non SQL related characters. Simply output the SQL query."
-
+            
+            # Generate SQL query using the LLaMA model
             response = groq.chat.completions.create(
                         model="llama3-70b-8192",
                         messages=[
@@ -142,7 +151,8 @@ def llama_zero_shot_app():
                     break
 
             return sql_query
-
+        
+        # Execute the generated SQL query on the DuckDB database
         def execute_sql(sql_query):
             try:
                 result_df = conn.execute(sql_query).fetchdf()
@@ -158,10 +168,14 @@ def llama_zero_shot_app():
             finally:
                 conn.close()
 
+        # Generate a summary of the SQL query results 
         def summarize_results(results):
+            # Initialize an empty summary string
             summary = " \n\n"
+            # Create a prompt for the summarry based on the SQL query results
             content_summary_prompt = f"Provide a detailed summary of the following data:\n\n{results.to_string(index=False)}"
             
+            # Generate a summary using the LLaMA model
             response = groq.chat.completions.create(
                 model="llama3-70b-8192",
                 messages=[
@@ -171,18 +185,24 @@ def llama_zero_shot_app():
                 max_tokens=300,
                 stop=["#", ";"]
             )
+
+            # Extract the content of the summary from the response
             content_summary = response.choices[0].message.content.strip()
             
+            # Append the generated summary to the summary string
             summary += f"\n\n{content_summary}"
             return summary
         
+        # Button to trigger the SQL generation and execution process
         if st.button('Generate SQL query'):
             if len(query) > 0:
+                # Generate SQL query based on the user input and schema information
                 sql_query = generate_sql(query, schema_info)
                 st.write("Generated SQL Query:")
                 st.code(sql_query, language='sql')
                 
                 st.subheader("Part 2: Query Results")
+                # Execute the generated SQL query
                 result = execute_sql(sql_query)
                 if isinstance(result, str):
                     st.error(result)
@@ -191,6 +211,7 @@ def llama_zero_shot_app():
                         st.warning("No results found.")
                     else:
                         st.dataframe(result)
+                        # Generate a summary of the query results
                         summary = summarize_results(result)
                         st.subheader("Part 3: Summary of Results")
                         st.write(summary)
